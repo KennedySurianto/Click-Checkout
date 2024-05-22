@@ -1,0 +1,45 @@
+<%- include("partials/header.ejs") %>
+
+    <div class="d-flex align-items-center py-4 w-100 bg-gradient-blue" style="height: 80vh;">
+        <div class="container mt-5">
+            <div class="card mx-auto" style="width: 300px;">
+                <div class="card-header">
+                    <h5 class="card-title fw-bold">Register</h5>
+                </div>
+                <div class="card-body">
+                    <form action="/register" method="post">
+                        <div class="input-group mb-2">
+                            <span class="input-group-text" id="basic-addon1">@</span>
+                            <div class="form-floating">
+                                <input type="username" name="username" class="form-control" id="floatingInput" placeholder="example">
+                                <label for="username">Username</label>
+                            </div>
+                        </div>
+                        <div class="form-floating mb-2">
+                            <input type="email" name="email" class="form-control" id="floatingInput"
+                                placeholder="name@example.com">
+                            <label for="email">Email address</label>
+                        </div>
+                        <div class="form-floating mb-2">
+                            <input type="password" name="password" class="form-control" id="floatingPassword"
+                                placeholder="Password">
+                            <label for="password">Password</label>
+                        </div>
+                        <div class="form-floating">
+                            <input type="password" name="password_confirmation" class="form-control" id="floatingPassword" placeholder="Password">
+                            <label for="password_confirmation">Password Confirmation</label>
+                        </div>
+                        <div class="form-check text-start my-3">
+                            <input class="form-check-input" type="checkbox" value="remember-me" id="flexCheckDefault">
+                            <label class="form-check-label" for="flexCheckDefault">
+                                Remember me
+                            </label>
+                        </div>
+                        <button type="submit" class="btn btn-primary button"><span>Register</span></button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

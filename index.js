@@ -1,0 +1,317 @@
+import express from "express";
+import bodyParser from "body-parser";
+import pg from "pg";
+import env from "dotenv";
+import passport from "passport";
+import session from "express-session";
+import { Strategy } from "passport-local";
+import bcrypt from "bcryptjs";
+import flash from "connect-flash";
+
+const app = express();
+const port = 3000;
+const saltRounds = 10;
+
+env.config();
+const db = new pg.Client({
+    user: process.env.PG_USER,
+    host: process.env.PG_HOST,
+    database: process.env.PG_DATABASE,
+    password: process.env.PG_PASSWORD,
+    port: process.env.PG_PORT,
+});
+db.connect();
+
+app.use(session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: true,
+    cookie: {
+        maxAge: 1000 * 60 * 60 * 6 // 6 hours
+    }
+}))
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+app.use(express.static("public"));
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(flash());
+
+// TODO:
+// - checkout page, get & post route
+
+function ensureAuthenticated(req, res, next) {
+    if (req.isAuthenticated()) {
+        return next();
+    }
+    res.redirect("/login");
+}
+
+var globalMessage = {
+    type: "",
+    content: "",
+    subcontent: "",
+    setMessage(type, content, subcontent) {
+        this.type = type;
+        this.content = content;
+        this.subcontent = subcontent;
+    },
+    getMessage() {
+        const temp = { ... this };
+        this.type = this.content = this.subcontent = "";
+        return temp;
+    }
+};
+
+app.get("/", async (req, res) => {
+    try {
+        const products = await db.query("SELECT * FROM products ORDER BY created_at DESC");
+
+        res.render("index.ejs", { isAuth: (req.user) ? true : false, products: products.rows, message: globalMessage.getMessage() });
+    } catch (error) {
+        res.render("index.ejs");
+    }
+})
+
+app.get("/register", (req, res) => {
+    res.render("register.ejs", { isAuth: (req.user) ? true : false, message: globalMessage.getMessage() });
+})
+
+app.get("/login", (req, res) => {
+    res.render("login.ejs", { isAuth: (req.user) ? true : false, message: globalMessage.getMessage() });
+})
+
+app.get("/add-product", ensureAuthenticated, async (req, res) => {
+    console.log(req.user);
+    try {
+        const categories = await db.query("SELECT * FROM categories");
+        res.render("add-product.ejs", { isAuth: (req.user) ? true : false, categories: categories.rows });
+    } catch (error) {
+        res.redirect("/");
+    }
+})
+
+app.get("/product/:id", async (req, res) => {
+    const product_id = req.params.id;
+
+    try {
+        const product = await db.query("SELECT * FROM products WHERE product_id = $1", [product_id]);
+        res.render("product.ejs", { isAuth: (req.user) ? true : false, product: product.rows[0] });
+    } catch (error) {
+        console.log(error);
+        res.redirect("/");
+    }
+})
+
+app.get("/cart", ensureAuthenticated, async (req, res) => {
+    const user_id = req.user.user_id;
+    try {
+        const carts = await db.query("SELECT * FROM carts c JOIN products p ON p.product_id = c.product_id WHERE c.user_id = $1", [user_id]);
+
+        res.render("cart.ejs", { isAuth: (req.user) ? true : false, carts: carts.rows });
+    } catch (error) {
+        console.log(error);
+        res.redirect("/");
+    }
+})
+
+app.get("/transaction", ensureAuthenticated, async (req, res) => {
+    try {
+        const transactions = await db.query("SELECT * FROM transaction_header th JOIN transaction_detail td ON td.transaction_id = th.transaction_id JOIN products p ON p.product_id = td.product_id WHERE th.user_id = $1", [req.user.user_id]);
+
+        res.render("transaction.ejs", { isAuth: (req.user) ? true : false, transactions: transactions.rows });
+    } catch (error) {
+        console.log(error);
+        res.redirect("/");
+    }
+})
+
+app.get("/profile", (req, res) => {
+    res.render("profile.ejs", { isAuth: (req.user) ? true : false })
+})
+
+app.post("/logout", (req, res) => {
+    req.logout((err) => {
+        if (err) {
+            console.error(err);
+            return res.sendStatus(500); // Internal Server Error
+        }
+
+        res.clearCookie('connect.sid'); // Clear the session cookie
+        globalMessage.setMessage("success", "Account logged out successfully", "Make sure you come back 😊")
+        res.redirect("/");
+    })
+})
+
+app.post("/checkout", ensureAuthenticated, async (req, res) => {
+    try {
+        const carts = await db.query("SELECT * FROM carts WHERE user_id = $1", [req.user.user_id]);
+
+        await db.query("BEGIN");
+
+        const transaction = await db.query("INSERT INTO transaction_header (user_id) VALUES ($1) RETURNING *", [req.user.user_id]);
+
+        const transactionId = transaction.rows[0].transaction_id;
+        const insertDetailPromises = carts.rows.map(c => {
+            return db.query("INSERT INTO transaction_detail (transaction_id, product_id, quantity) VALUES ($1, $2, $3)",
+                [transactionId, c.product_id, c.quantity]);
+        });
+
+        await Promise.all(insertDetailPromises);
+
+        await db.query("DELETE FROM carts WHERE user_id = $1", [req.user.user_id]);
+
+        await db.query("COMMIT");
+
+        res.redirect("/cart");
+    } catch (error) {
+        await db.query("ROLLBACK");
+        console.error(error);
+        res.redirect("/");
+    }
+
+})
+
+app.post("/delete-cart", ensureAuthenticated, async (req, res) => {
+    const cart_id = req.body.cart_id;
+
+    try {
+        await db.query("DELETE FROM carts WHERE cart_id = $1", [cart_id]);
+
+        res.redirect("/cart");
+    } catch (error) {
+        console.log(error);
+        res.redirect("/");
+    }
+})
+
+app.post("/add-to-cart", ensureAuthenticated, async (req, res) => {
+    const user_id = req.user.user_id;
+    const product_id = req.body.product_id;
+    const quantity = parseInt(req.body.quantity);
+
+    try {
+        const checkExistingItem = await db.query("SELECT * FROM carts WHERE user_id = $1 AND product_id = $2", [user_id, product_id]);
+
+        // if there is already the item user trying to add to cart, just add the quantity
+        if (checkExistingItem.rowCount > 0) {
+            const cart = checkExistingItem.rows[0];
+            const updateQuantity = quantity + parseInt(cart.quantity);
+            await db.query("UPDATE carts SET quantity = $1 WHERE cart_id = $2", [updateQuantity, cart.cart_id]);
+        } else {
+            await db.query("INSERT INTO carts (user_id, product_id, quantity) VALUES ($1, $2, $3)", [user_id, product_id, quantity]);
+        }
+
+        res.redirect("/cart");
+    } catch (error) {
+        console.log(error);
+        res.redirect("/");
+    }
+})
+
+app.post("/add-product", ensureAuthenticated, async (req, res) => {
+    const user_id = req.user.user_id;
+    const category_id = req.body.category_id;
+    const name = req.body.name;
+    const desc = req.body.description;
+    const stock = req.body.stock;
+    const price = req.body.price;
+
+    try {
+        await db.query("INSERT INTO products (user_id, category_id, name, description, stock, price) VALUES ($1, $2, $3, $4, $5, $6)", [user_id, category_id, name, desc, stock, price]);
+
+        res.redirect("/");
+    } catch (error) {
+        console.log(error);
+        res.redirect("/");
+    }
+})
+
+app.post("/register", async (req, res) => {
+    const email = req.body.email;
+    const username = req.body.username;
+    const password = req.body.password;
+    const password_confirmation = req.body.password_confirmation;
+
+    try {
+        const checkUnique = await db.query("SELECT * FROM users WHERE email = $1", [email]);
+
+        if (checkUnique.rowCount > 0) {
+            globalMessage.setMessage("danger", "Email already exist", "Try using a different email");
+            res.redirect("/register");
+        } else {
+            if (password !== password_confirmation) {
+                globalMessage.setMessage("danger", "Password doesn't match", "Make sure the password confirmation matches the password");
+                res.redirect("/register");
+            }
+            bcrypt.hash(password, saltRounds, async (err, hash) => {
+                if (err) {
+                    console.log(err);
+                } else {
+                    const result = await db.query("INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING *", [username, email, hash]);
+                    const user = result.rows[0];
+
+                    req.login(user, (err) => {
+                        console.log(err);
+                        globalMessage.setMessage("success", "Account created successfully", "You can add items to cart now");
+                        res.redirect("/");
+                    })
+                }
+            })
+        }
+    } catch (error) {
+        console.log(error);
+    }
+})
+
+app.post("/login", passport.authenticate("local", {
+    successRedirect: "/",
+    failureRedirect: "/login"
+}));
+
+passport.use(
+    "local",
+    new Strategy(
+        { usernameField: "email" }, // Specify which field is used as the username
+        async (email, password, done) => {
+            try {
+                const result = await db.query("SELECT * FROM users WHERE email = $1", [email]);
+                if (result.rowCount === 0) {
+                    globalMessage.setMessage("danger", "Email doesn't exist", "Please make sure you entered the correct email");
+                    return done(null, false);
+                }
+
+                const user = result.rows[0];
+                const storedHashPassword = user.password_hash;
+
+                bcrypt.compare(password, storedHashPassword, (err, isMatch) => {
+                    if (err) {
+                        return done(err);
+                    } else if (isMatch) {
+                        console.log(user);
+                        globalMessage.setMessage("success", "Account logged in successfully", "Welcome back")
+                        return done(null, user);
+                    } else {
+                        globalMessage.setMessage("danger", "Incorrect password", "Please make sure you entered the correct password");
+                        return done(null, false);
+                    }
+                });
+            } catch (error) {
+                return done(error);
+            }
+        }
+    )
+);
+
+passport.serializeUser((user, cb) => {
+    cb(null, user);
+})
+
+passport.deserializeUser((user, cb) => {
+    cb(null, user);
+})
+
+app.listen(port, () => {
+    console.log(`Listening on port ${port}`);
+})

@@ -1,0 +1,103 @@
+<%- include("partials/header.ejs") %>
+
+
+
+<header class="bg-gradient-blue shadow">
+    <div class="container col-xxl-10 px-4 py-5 mb-3 text-light">
+        <div class="row flex-lg-row-reverse align-items-center g-5 py-5">
+            <div class="col-10 col-sm-8 col-lg-6">
+                <img src="images/header.png" class="d-block mx-lg-auto img-fluid" alt="Bootstrap Themes"
+                width="500" height="500" loading="lazy">
+            </div>
+            <div class="col-lg-6">
+                <h1 class="display-5 fw-bold lh-1 mb-3">Click & Checkout</h1>
+                <p class="lead"><span id="typewriter"></span><span id="cursor">|</span></p>
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-start">
+                        <a href="#products" type="button" class="btn btn-light btn-lg px-4 me-md-2 button">
+                            <span>Shop now</span>
+                        </svg>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+    <div class="album py-5" id="products">
+        <div class="container">
+            <h1>Recent Products</h1>
+            <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3">
+                <% if (locals.products) { %>
+                <% products.forEach((p)=> { %>
+                <div class="col">
+                    <a href="/product/<%= p.product_id %>" class="card-link">
+                        <div class="card shadow-sm">
+                            <img src="<%= p.image_url %>" alt="" class="bd-placeholder-img card-img-top img-cover" role="img" width="100%"
+                                height="20%" preserveAspectRatio="xMidYMid slice" focusable="false">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <p class="card-text mb-0">
+                                        <%= p.name %>
+                                    </p>
+                                    <medium class="text-body-secondary">$<%= p.price %>
+                                    </medium>
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <% }) %>
+                <% } %>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        var i = 0;
+        var txtIndex = 0;
+        var speed = 50;
+        var delay = 3000; // Delay after finishing typing and before backspacing
+        var backspaceSpeed = 30;
+        var texts = [
+            'Discover amazing deals on our eCommerce site.',
+            'Shop the latest trends at unbeatable prices.',
+            'Free shipping on orders over $50!',
+            'Sign up for exclusive offers and discounts.',
+            'Your one-stop shop for all your needs.',
+            'New arrivals daily! Don’t miss out.',
+            'Hassle-free returns within 30 days.',
+            'Join our loyalty program and save more.'
+        ];
+
+        function typeWriter() {
+            if (i < texts[txtIndex].length) {
+                document.getElementById("typewriter").innerHTML += texts[txtIndex].charAt(i);
+                i++;
+                setTimeout(typeWriter, speed);
+            } else {
+                setTimeout(backspace, delay);
+            }
+        }
+
+        function backspace() {
+            if (i > 0) {
+                document.getElementById("typewriter").innerHTML = document.getElementById("typewriter").innerHTML.slice(0, -1);
+                i--;
+                setTimeout(backspace, backspaceSpeed);
+            } else {
+                txtIndex = (txtIndex + 1) % texts.length;
+                setTimeout(typeWriter, delay / 3);
+            }
+        }
+
+        function startTypewriter() {
+            i = 0;
+            txtIndex = 0;
+            document.getElementById("typewriter").innerHTML = "";
+            typeWriter();
+        }
+
+        startTypewriter();
+    </script>
+</body>
+</html>

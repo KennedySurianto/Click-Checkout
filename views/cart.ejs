@@ -1,0 +1,26 @@
+<%- include("partials/header.ejs") %>
+
+
+    <h1>Your Cart</h1>
+    <% if (locals.carts) { %>
+        <ol>
+            <% carts.forEach((c) => { %>
+                <li>
+                    <p>
+                        <%= c.name %> (<%= c.quantity %>)
+                        <form action="/delete-cart" method="post">
+                            <input type="hidden" name="cart_id", value="<%= c.cart_id %>">
+                            <button type="submit">Delete from cart</button>
+                        </form>
+                    </p>
+                </li>
+            <% }) %>
+        </ol>
+    <% } %>
+
+    <form action="/checkout" method="post">
+        <button type="submit">Chekout</button>
+    </form>
+</body>
+
+</html>

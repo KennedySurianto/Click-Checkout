@@ -1,0 +1,19 @@
+<%- include("partials/header.ejs") %>
+
+<h1>Your Transactions</h1>
+
+<% if (locals.transactions) { %>
+<ol>
+    <% transactions.forEach((t) => { %>
+        <div class="border">
+            <h3>Transaction <%= t.transaction_id %></h3>
+            <li>
+                <p>
+                    <%= t.name %> (<%= t.quantity %>)
+                </p>
+            </li>
+        </div>
+    <% }) %>
+</ol>
+<% } %>
+

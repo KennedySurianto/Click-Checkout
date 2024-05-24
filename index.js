@@ -127,11 +127,38 @@ app.get("/transaction", ensureAuthenticated, async (req, res) => {
     }
 })
 
-app.get("/profile", (req, res) => {
-    res.render("profile.ejs", { isAuth: (req.user) ? true : false })
+app.get("/profile", ensureAuthenticated, (req, res) => {
+    res.render("profile.ejs", { isAuth: (req.user) ? true : false, user: req.user, message: globalMessage.getMessage() })
 })
 
-app.post("/logout", (req, res) => {
+app.post("/edit-profile", ensureAuthenticated, async (req, res) => {
+    const username = req.body.username;
+    const email = req.body.email;
+
+    console.log(req.body.username);
+    console.log("username: ", username, "|email: ", email);
+
+    if (username === req.user.username && email === req.user.email) {
+        console.log("No changes made")
+        
+    } else {
+        try {
+            const user = await db.query("SELECT * FROM users WHERE username = $1 AND email = $2", [username, email]);
+            if (user.rowCount === 0) {
+                await db.query("UPDATE users SET username = $1, email = $2 WHERE user_id = $3", [username, email, req.user.user_id]);
+                globalMessage.setMessage("success", "Changes made successfully", "Be sure to remember the new one")
+                console.log("changes made")
+            } else {
+                globalMessage.setMessage("danger", "Username or email already exists", "Please choose a different one");
+            }
+        } catch (error) {
+            globalMessage.setMessage("danger", "An error occured while updating", "Please try again");
+        }
+    }
+    res.redirect("/profile");
+})
+
+app.post("/logout", ensureAuthenticated, (req, res) => {
     req.logout((err) => {
         if (err) {
             console.error(err);

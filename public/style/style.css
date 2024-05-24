@@ -160,3 +160,9 @@ body::-webkit-scrollbar-thumb {
     border-radius: 8px;
     background-color: rgba(9, 9, 121, 1);
 }
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}

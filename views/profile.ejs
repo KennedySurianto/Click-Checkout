@@ -1,10 +1,68 @@
 <%- include("partials/header.ejs") %>
 
+    <div class="pt-5 pb-3 bg-gradient-blue">
 
-<h1>Profile</h1>
 
-<form action="/logout" method="post">
-    <button type="submit" class="nav-link">LOG OUT</button>
-</form>
+        <div class="container text-light">
+            <h1>My Profile</h1>
+            <hr>
 
-<a href="/transaction" class="nav-link">TRANSACTION</a>
+            <div class="row">
+                <div class="col-md-6">
+                    <h4>Address</h4>
+                    <ul class="list-group">
+                        <li class="list-group-item"><b>City: </b><span id="city"></span></li>
+                        <li class="list-group-item"><b>Postcode: </b><span id="postcode"></span></li>
+                        <li class="list-group-item"><b>Address: </b><span id="address"></span></li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h4>Edit Profile</h4>
+                    <form action="/edit-profile" method="post">
+                        <div class="mb-3">
+                            <label for="usernameInput" class="form-label">Username</label>
+                            <input type="text" name="username" class="form-control" id="usernameInput" value="<%= user.username %>"
+                                disabled>
+                        </div>
+                        <div class="mb-3">
+                            <label for="emailInput" class="form-label">Email</label>
+                            <input type="email" name="email" class="form-control" id="emailInput" value="<%= user.email %>" disabled>
+                        </div>
+                        <button type="button" class="btn btn-light" id="editButton">Edit</button>
+                        <button type="submit" class="btn btn-primary button d-none" id="saveButton">Save</button>
+                    </form>
+                </div>
+            </div>
+
+            <hr>
+
+            <ul class="nav justify-content-end">
+                <li class="nav-item">
+                    <a class="nav-link text-light" href="/transaction">Transactions</a>
+                </li>
+                <li class="nav-item">
+                    <form action="/logout" method="post">
+                        <button type="submit" class="nav-link text-light">Logout</button>
+                    </form>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+
+        // Enable editing on button click
+        const editButton = document.getElementById('editButton');
+        const usernameInput = document.getElementById('usernameInput');
+        const emailInput = document.getElementById('emailInput');
+        const saveButton = document.getElementById('saveButton');
+
+        editButton.addEventListener('click', () => {
+            usernameInput.disabled = false;
+            emailInput.disabled = false;
+            editButton.classList.add('d-none');
+            saveButton.classList.remove('d-none');
+        });
+    </script>
+    
+</body>

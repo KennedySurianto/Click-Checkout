@@ -9,36 +9,72 @@
             </h1>
             <hr>
             <div class="row">
-                <div class="col-md-6">
-                    <h4>Address</h4>
-                    <form id="addressForm">
-                        <div class="mb-3">
-                            <label for="streetAddress" class="form-label">Street Address</label>
-                            <input type="text" class="form-control" id="streetAddress" placeholder="123 Main St" disabled>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="city" class="form-label">City</label>
-                                <input type="text" class="form-control" id="city" placeholder="New York" disabled>
+                <% if (locals.address) { %>
+                    <!-- if address is set -->
+                    <div class="col-md-6">
+                        <h4>Address</h4>
+                        <form id="addressForm" action="/address" method="post">
+                            <div class="mb-3">
+                                <label for="streetAddress" class="form-label">Street Address</label>
+                                <input type="text" name="street_address" class="form-control" id="streetAddress" value="<%= address.street_address %>"
+                                    disabled>
                             </div>
-                            <div class="col-md-3 mb-3">
-                                <label for="state" class="form-label">State</label>
-                                <select class="form-select" id="state" disabled>
-                                    <option selected>Choose...</option>
-                                    <option value="NY">New York</option>
-                                    <option value="CA">California</option>
-                                    <option value="TX">Texas</option>
-                                </select>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="city" class="form-label">City</label>
+                                    <input type="text" name="city" class="form-control" id="city" value="<%= address.city %>" disabled>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label for="state" class="form-label">State</label>
+                                    <select class="form-select" name="state" id="state" disabled>
+                                        <option selected><%= address.state %></option>
+                                        <option value="NY">New York</option>
+                                        <option value="CA">California</option>
+                                        <option value="TX">Texas</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label for="zip" class="form-label">Zip Code</label>
+                                    <input type="text" name="zip_code" class="form-control" id="zip" value="<%= address.zip_code %>" disabled>
+                                </div>
                             </div>
-                            <div class="col-md-3 mb-3">
-                                <label for="zip" class="form-label">Zip Code</label>
-                                <input type="text" class="form-control" id="zip" placeholder="10001" disabled>
+                            <button type="button" class="btn btn-light" id="editAddressButton">Edit</button>
+                            <button type="submit" class="btn btn-primary button d-none" id="saveAddressButton">Save</button>
+                        </form>
+                    </div>
+                <% } else { %>
+                    <!-- if address not set -->
+                    <div class="col-md-6">
+                        <h4>Address</h4>
+                        <form id="addressForm" action="/address" method="post">
+                            <div class="mb-3">
+                                <label for="streetAddress" class="form-label">Street Address</label>
+                                <input type="text" name="street_address" class="form-control" id="streetAddress" placeholder="123 Main St" disabled>
                             </div>
-                        </div>
-                        <button type="button" class="btn btn-light" id="editAddressButton">Edit</button>
-                        <button type="submit" class="btn btn-primary button d-none" id="saveAddressButton">Save</button>
-                    </form>
-                </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="city" class="form-label">City</label>
+                                    <input type="text" name="city" class="form-control" id="city" placeholder="New York" disabled>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label for="state" class="form-label">State</label>
+                                    <select class="form-select" name="state" id="state" disabled>
+                                        <option selected>Choose...</option>
+                                        <option value="NY">New York</option>
+                                        <option value="CA">California</option>
+                                        <option value="TX">Texas</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label for="zip" class="form-label">Zip Code</label>
+                                    <input type="text" name="zip_code" class="form-control" id="zip" placeholder="10001" disabled>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-light" id="editAddressButton">Edit</button>
+                            <button type="submit" class="btn btn-primary button d-none" id="saveAddressButton">Save</button>
+                        </form>
+                    </div>
+                <% } %>
                 <div class="col-md-6">
                     <h4>Edit Profile</h4>
                     <form action="/edit-profile" method="post">
@@ -62,11 +98,8 @@
 
             <ul class="nav justify-content-end">
                 <li class="nav-item">
-                    <a class="nav-link text-light" href="/transaction">Transactions</a>
-                </li>
-                <li class="nav-item">
                     <form action="/logout" method="post">
-                        <button type="submit" class="nav-link text-light">Logout</button>
+                        <button type="submit" class="nav-link text-light fw-bold">Logout</button>
                     </form>
                 </li>
             </ul>

@@ -38,14 +38,19 @@ app.use(express.static("public"));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(flash());
 
-// TODO:
-// - checkout page, get & post route
-
 function ensureAuthenticated(req, res, next) {
     if (req.isAuthenticated()) {
         return next();
     }
     res.redirect("/login");
+}
+
+function ensureIsAdmin(req, res, next) {
+    if (req.user.is_admin) {
+        return next();
+    }
+    console.log("not admin, cannot enter the add-product page");
+    res.redirect("/");
 }
 
 var globalMessage = {
@@ -68,25 +73,25 @@ app.get("/", async (req, res) => {
     try {
         const products = await db.query("SELECT * FROM products ORDER BY created_at DESC");
 
-        res.render("index.ejs", { isAuth: (req.user) ? true : false, products: products.rows, message: globalMessage.getMessage() });
+        res.render("index.ejs", { user: req.user, products: products.rows, message: globalMessage.getMessage() });
     } catch (error) {
         res.render("index.ejs");
     }
 })
 
 app.get("/register", (req, res) => {
-    res.render("register.ejs", { isAuth: (req.user) ? true : false, message: globalMessage.getMessage() });
+    res.render("register.ejs", { user: req.user, message: globalMessage.getMessage() });
 })
 
 app.get("/login", (req, res) => {
-    res.render("login.ejs", { isAuth: (req.user) ? true : false, message: globalMessage.getMessage() });
+    res.render("login.ejs", { user: req.user, message: globalMessage.getMessage() });
 })
 
-app.get("/add-product", ensureAuthenticated, async (req, res) => {
+app.get("/add-product", ensureAuthenticated, ensureIsAdmin, async (req, res) => {
     console.log(req.user);
     try {
         const categories = await db.query("SELECT * FROM categories");
-        res.render("add-product.ejs", { isAuth: (req.user) ? true : false, categories: categories.rows });
+        res.render("add-product.ejs", { user: req.user, categories: categories.rows });
     } catch (error) {
         res.redirect("/");
     }
@@ -97,7 +102,7 @@ app.get("/product/:id", async (req, res) => {
 
     try {
         const product = await db.query("SELECT * FROM products WHERE product_id = $1", [product_id]);
-        res.render("product.ejs", { isAuth: (req.user) ? true : false, product: product.rows[0] });
+        res.render("product.ejs", { user: req.user, product: product.rows[0] });
     } catch (error) {
         console.log(error);
         res.redirect("/");
@@ -109,7 +114,7 @@ app.get("/cart", ensureAuthenticated, async (req, res) => {
     try {
         const carts = await db.query("SELECT * FROM carts c JOIN products p ON p.product_id = c.product_id WHERE c.user_id = $1", [user_id]);
 
-        res.render("cart.ejs", { isAuth: (req.user) ? true : false, carts: carts.rows });
+        res.render("cart.ejs", { user: req.user, carts: carts.rows });
     } catch (error) {
         console.log(error);
         res.redirect("/");
@@ -118,17 +123,24 @@ app.get("/cart", ensureAuthenticated, async (req, res) => {
 
 app.get("/transaction", ensureAuthenticated, async (req, res) => {
     try {
-        const transactions = await db.query("SELECT * FROM transaction_header th JOIN transaction_detail td ON td.transaction_id = th.transaction_id JOIN products p ON p.product_id = td.product_id WHERE th.user_id = $1", [req.user.user_id]);
+        const transactions = await db.query("SELECT * FROM transaction_header th JOIN transaction_detail td ON td.transaction_id = th.transaction_id JOIN products p ON p.product_id = td.product_id WHERE th.user_id = $1 ORDER BY transaction_date DESC", [req.user.user_id]);
 
-        res.render("transaction.ejs", { isAuth: (req.user) ? true : false, transactions: transactions.rows });
+        res.render("transaction.ejs", { user: req.user, transactions: transactions.rows });
     } catch (error) {
         console.log(error);
         res.redirect("/");
     }
 })
 
-app.get("/profile", ensureAuthenticated, (req, res) => {
-    res.render("profile.ejs", { isAuth: (req.user) ? true : false, user: req.user, message: globalMessage.getMessage() })
+app.get("/profile", ensureAuthenticated, async (req, res) => {
+    try {
+        const addresses = await db.query("SELECT * FROM addresses WHERE user_id = $1", [req.user.user_id]);
+
+        res.render("profile.ejs", { user: req.user, address: addresses.rows[0], message: globalMessage.getMessage() })
+    } catch (error) {
+        console.log(error);
+        res.redirect("/");
+    }
 })
 
 app.post("/edit-profile", ensureAuthenticated, async (req, res) => {
@@ -139,8 +151,7 @@ app.post("/edit-profile", ensureAuthenticated, async (req, res) => {
     console.log("username: ", username, "|email: ", email);
 
     if (username === req.user.username && email === req.user.email) {
-        console.log("No changes made")
-        
+        globalMessage.setMessage("warning", "No changes made", "Make sure you enter different username or email to update")
     } else {
         try {
             const user = await db.query("SELECT * FROM users WHERE username = $1 AND email = $2", [username, email]);
@@ -171,27 +182,59 @@ app.post("/logout", ensureAuthenticated, (req, res) => {
     })
 })
 
+app.post("/address", ensureAuthenticated, async (req, res) => {
+    const street_address = req.body.street_address;
+    const city = req.body.city;
+    const state = req.body.state;
+    const zip_code = req.body.state;
+
+    try {
+        const address = await db.query("SELECT * FROM addresses WHERE user_id = $1", [req.user.user_id]);
+        if (address.rowCount > 0) {
+            // update
+            globalMessage.setMessage("success", "Address updated successfully", "This address will be used for future delivery");
+            await db.query("UPDATE addresses SET street_address = $1, SET city = $2, SET state = $3, SET zip_code = $4 WHERE user_id = $5", [street_address, city, state, zip_code, req.user.user_id]);
+        } else {
+            // create
+            globalMessage.setMessage("success", "Address created successfully", "This address will be used for future delivery");
+            await db.query("INSERT INTO addresses (user_id, street_address, city, state, zip_code) VALUES ($1, $2, $3, $4, $5)", [req.user.user_id, street_address, city, state, zip_code]);
+        }
+        res.redirect("/profile");
+    } catch (error) {
+        console.log(error);
+        res.redirect("/");
+    }
+})
+
 app.post("/checkout", ensureAuthenticated, async (req, res) => {
     try {
-        const carts = await db.query("SELECT * FROM carts WHERE user_id = $1", [req.user.user_id]);
+        const address = await db.query("SELECT * FROM addresses WHERE user_id = $1", [req.user.user_id]);
 
-        await db.query("BEGIN");
+        if (address.rowCount === 0) {
+            globalMessage.setMessage("warning", "Address not set", "Please fill in your address first");
+            res.redirect("/profile");
+        } else {
 
-        const transaction = await db.query("INSERT INTO transaction_header (user_id) VALUES ($1) RETURNING *", [req.user.user_id]);
+            const carts = await db.query("SELECT * FROM carts WHERE user_id = $1", [req.user.user_id]);
 
-        const transactionId = transaction.rows[0].transaction_id;
-        const insertDetailPromises = carts.rows.map(c => {
-            return db.query("INSERT INTO transaction_detail (transaction_id, product_id, quantity) VALUES ($1, $2, $3)",
-                [transactionId, c.product_id, c.quantity]);
-        });
+            await db.query("BEGIN");
 
-        await Promise.all(insertDetailPromises);
+            const transaction = await db.query("INSERT INTO transaction_header (user_id) VALUES ($1) RETURNING *", [req.user.user_id]);
 
-        await db.query("DELETE FROM carts WHERE user_id = $1", [req.user.user_id]);
+            const transactionId = transaction.rows[0].transaction_id;
+            const insertDetailPromises = carts.rows.map(c => {
+                return db.query("INSERT INTO transaction_detail (transaction_id, product_id, quantity) VALUES ($1, $2, $3)",
+                    [transactionId, c.product_id, c.quantity]);
+            });
 
-        await db.query("COMMIT");
+            await Promise.all(insertDetailPromises);
 
-        res.redirect("/cart");
+            await db.query("DELETE FROM carts WHERE user_id = $1", [req.user.user_id]);
+
+            await db.query("COMMIT");
+
+            res.redirect("/cart");
+        }
     } catch (error) {
         await db.query("ROLLBACK");
         console.error(error);
@@ -237,7 +280,7 @@ app.post("/add-to-cart", ensureAuthenticated, async (req, res) => {
     }
 })
 
-app.post("/add-product", ensureAuthenticated, async (req, res) => {
+app.post("/add-product", ensureAuthenticated, ensureIsAdmin, async (req, res) => {
     const user_id = req.user.user_id;
     const category_id = req.body.category_id;
     const name = req.body.name;

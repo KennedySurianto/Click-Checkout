@@ -31,9 +31,12 @@
             </a>
 
             <ul class="nav nav-pills custom-menu">
-                <% if (locals.isAuth && isAuth) { %>
+                <% if (locals.user) { %>
                     <li class="nav-item custom-menu-item"><a href="/cart" class="nav-link">CART</a></li>
-                    <li class="nav-item custom-menu-item"><a href="/add-product" class="nav-link">ADD PRODUCT</a></li>
+                    <li class="nav-item custom-menu-item"><a href="/transaction" class="nav-link">TRANSACTIONS</a></li>
+                    <% if (user.is_admin) { %>
+                        <li class="nav-item custom-menu-item"><a href="/add-product" class="nav-link">ADD PRODUCT</a></li>
+                    <% } %>
                     <li class="nav-item custom-menu-item"><a href="/profile" class="nav-link">PROFILE</a></li>
                 <% } else { %>
                     <li class="nav-item custom-menu-item"><a href="/login" class="nav-link">Login</a></li>

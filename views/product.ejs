@@ -84,7 +84,7 @@
                                 <input type="hidden" id="inputTotal" name="total" value="<%= product.price %>">
                                 <input type="hidden" name="product_id" value="<%= product.product_id %>">
                                 <div>
-                                    <button type="submit" class="btn btn-lg btn-primary">Add to cart</button>
+                                    <button type="submit" class="btn btn-lg btn-primary <% if (parseInt(product.stock) === 0) { %> disabled <% } %>">Add to cart</button>
                                 </div>
                             </div>
                         </div>
@@ -135,3 +135,6 @@
         updateButtonStates();
     </script>
     </div>
+
+
+<%- include ("partials/footer.ejs") %>

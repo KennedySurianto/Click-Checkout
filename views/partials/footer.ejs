@@ -1,0 +1,24 @@
+
+
+    <footer class="py-4 border-top">
+        <div class="container d-flex flex-wrap justify-content-between align-items-center ">
+            <p class="col-md-4 mb-0 text-body-secondary">© 2024 Click & Checkout</p>
+
+            <a href="/" class="col-md-4 d-flex align-items-center justify-content-center mb-3 mb-md-0 me-md-auto link-body-emphasis text-decoration-none">
+                <img src="/images/logo.png" alt="click & checkout logo" class="bi me-2" width="40" height="32">
+            </a>
+
+            <ul class="nav col-md-4 justify-content-end">
+                <li class="nav-item"><a href="/" class="nav-link px-2 text-body-secondary">Home</a></li>
+                <% if (locals.user) { %>
+                    <li class="nav-item"><a href="/cart" class="nav-link px-2 text-body-secondary">Cart</a></li>
+                    <li class="nav-item"><a href="/transactions" class="nav-link px-2 text-body-secondary">Transactions</a></li>
+                <% } else { %>
+                    <li class="nav-item"><a href="/login" class="nav-link px-2 text-body-secondary">Login</a></li>
+                    <li class="nav-item"><a href="/register" class="nav-link px-2 text-body-secondary">Register</a></li>
+                <% } %>
+            </ul>
+        </div>
+    </footer>
+</body>
+</html>

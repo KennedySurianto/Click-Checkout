@@ -1,0 +1,93 @@
+<%- include("partials/header.ejs") %>
+
+    <form action="/admin/add-product" method="post" class="container d-flex flex-column my-5 p-3 border border-dark rounded shadow">
+        <h1>ADD PRODUCT</h1>
+        <div class="mb-3"> <label for="name" class="form-label">Product Name</label>
+            <input type="text" name="name" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label for="category_id" class="form-label">Category</label>
+            <select name="category_id" id="" class="form-select" required>
+                <option value="">Select Category</option>
+                <% if (locals.categories) { %>
+                    <% categories.forEach((c)=> { %>
+                        <option value="<%= c.category_id %>">
+                            <%= c.name %>
+                        </option>
+                        <% }) %>
+                            <% } %>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label for="description" class="form-label">Description</label>
+            <textarea name="description" id="" class="form-control" required></textarea>
+        </div>
+        <div class="mb-3">
+            <label for="price" class="form-label">Price</label>
+            <input type="number" name="price" id="" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label for="stock" class="form-label">Stock</label>
+            <input type="number" name="stock" class="form-control" required>
+        </div>
+        <div>
+            <button type="submit" class="btn btn-primary">Add product</button>
+        </div>
+    </form>
+
+
+    <% if (locals.products) { %>
+        <div class="container my-5">
+            <h1>EDIT PRODUCT</h1>
+            <div class="row">
+                <% products.forEach((p)=> { %>
+                    <div class="col-md-6 col-lg-4 mb-3">
+                        <form action="/admin/edit-product" method="post" class="card border border-dark">
+                            <div class="card-body">
+                                <input type="hidden" name="product_id" value="<%= p.product_id %>">
+                                <div class="mb-3">
+                                    <label for="name" class="form-label">Product Name</label>
+                                    <input type="text" name="name" value="<%= p.name %>" class="form-control" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="category_id" class="form-label">Category</label>
+                                    <select name="category_id" id="" class="form-select" required>
+                                        <option value="">
+                                            Select Category
+                                        </option>
+                                        <% if (locals.categories) { %>
+                                            <% categories.forEach((c)=> { %>
+                                                <option value="<%= c.category_id %>" <% if (c.category_id === p.category_id) { %> selected <% } %>>
+                                                    <%= c.name %>
+                                                </option>
+                                            <% }) %>
+                                        <% } %>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="description" class="form-label">Description</label>
+                                    <textarea name="description" id="" class="form-control"
+                                        required><%= p.description %></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="price" class="form-label">Price</label>
+                                    <input type="number" name="price" id="" value="<%= p.price %>" class="form-control"
+                                        required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="stock" class="form-label">Stock</label>
+                                    <input type="number" name="stock" value="<%= p.stock %>" class="form-control" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Edit product</button>
+                            </div>
+                        </form>
+                    </div>
+                    <% }) %>
+            </div>
+        </div>
+        <% } else { %>
+            <p>No products yet.</p>
+            <% } %>
+
+</body>
+</html>

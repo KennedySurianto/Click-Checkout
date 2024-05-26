@@ -87,12 +87,14 @@ app.get("/login", (req, res) => {
     res.render("login.ejs", { user: req.user, message: globalMessage.getMessage() });
 })
 
-app.get("/add-product", ensureAuthenticated, ensureIsAdmin, async (req, res) => {
+app.get("/admin", ensureAuthenticated, ensureIsAdmin, async (req, res) => {
     console.log(req.user);
     try {
         const categories = await db.query("SELECT * FROM categories");
-        res.render("add-product.ejs", { user: req.user, categories: categories.rows });
+        const products = await db.query("SELECT * FROM products");
+        res.render("admin_page.ejs", { user: req.user, categories: categories.rows, products: products.rows });
     } catch (error) {
+        console.log(error);
         res.redirect("/");
     }
 })
@@ -193,7 +195,7 @@ app.post("/address", ensureAuthenticated, async (req, res) => {
         if (address.rowCount > 0) {
             // update
             globalMessage.setMessage("success", "Address updated successfully", "This address will be used for future delivery");
-            await db.query("UPDATE addresses SET street_address = $1, SET city = $2, SET state = $3, SET zip_code = $4 WHERE user_id = $5", [street_address, city, state, zip_code, req.user.user_id]);
+            await db.query("UPDATE addresses SET street_address = $1, city = $2, state = $3, zip_code = $4 WHERE user_id = $5", [street_address, city, state, zip_code, req.user.user_id]);
         } else {
             // create
             globalMessage.setMessage("success", "Address created successfully", "This address will be used for future delivery");
@@ -211,17 +213,24 @@ app.post("/checkout", ensureAuthenticated, async (req, res) => {
         const address = await db.query("SELECT * FROM addresses WHERE user_id = $1", [req.user.user_id]);
 
         if (address.rowCount === 0) {
+            // if address not set
             globalMessage.setMessage("warning", "Address not set", "Please fill in your address first");
             res.redirect("/profile");
         } else {
-
+            // if address is set
             const carts = await db.query("SELECT * FROM carts WHERE user_id = $1", [req.user.user_id]);
 
             await db.query("BEGIN");
 
             const transaction = await db.query("INSERT INTO transaction_header (user_id) VALUES ($1) RETURNING *", [req.user.user_id]);
-
             const transactionId = transaction.rows[0].transaction_id;
+
+            const updateStockPromises = carts.rows.map(c => {
+                return db.query("UPDATE products SET stock = stock - $1 WHERE product_id = $2", [c.quantity, c.product_id]);
+            });
+
+            await Promise.all(updateStockPromises);
+
             const insertDetailPromises = carts.rows.map(c => {
                 return db.query("INSERT INTO transaction_detail (transaction_id, product_id, quantity) VALUES ($1, $2, $3)",
                     [transactionId, c.product_id, c.quantity]);
@@ -280,7 +289,7 @@ app.post("/add-to-cart", ensureAuthenticated, async (req, res) => {
     }
 })
 
-app.post("/add-product", ensureAuthenticated, ensureIsAdmin, async (req, res) => {
+app.post("/admin/add-product", ensureAuthenticated, ensureIsAdmin, async (req, res) => {
     const user_id = req.user.user_id;
     const category_id = req.body.category_id;
     const name = req.body.name;
@@ -291,7 +300,25 @@ app.post("/add-product", ensureAuthenticated, ensureIsAdmin, async (req, res) =>
     try {
         await db.query("INSERT INTO products (user_id, category_id, name, description, stock, price) VALUES ($1, $2, $3, $4, $5, $6)", [user_id, category_id, name, desc, stock, price]);
 
+        res.redirect("/admin");
+    } catch (error) {
+        console.log(error);
         res.redirect("/");
+    }
+})
+
+app.post("/admin/edit-product", ensureAuthenticated, ensureIsAdmin, async (req, res) => {
+    const product_id = req.body.product_id;
+    const category_id = req.body.category_id;
+    const name = req.body.name;
+    const description = req.body.description;
+    const stock = req.body.stock;
+    const price = req.body.price;
+
+    try {
+        await db.query("UPDATE products SET category_id = $1, name = $2, description = $3, stock = $4, price = $5 WHERE product_id = $6", [category_id, name, description, stock, price, product_id]);
+
+        res.redirect("/admin");
     } catch (error) {
         console.log(error);
         res.redirect("/");

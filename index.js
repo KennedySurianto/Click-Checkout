@@ -35,7 +35,7 @@ app.use(passport.session());
 app.use(express.static("public"));
 app.use(bodyParser.urlencoded({ extended: true }));
 
-app.set('views', './views');
+app.set('views', './views/');
 app.set('view engine', 'ejs');
 
 function ensureAuthenticated(req, res, next) {

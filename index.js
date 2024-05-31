@@ -6,7 +6,7 @@ import passport from "passport";
 import session from "cookie-session";
 import { Strategy } from "passport-local";
 import bcrypt from "bcryptjs";
-import ejs from "ejs";
+import { join } from 'path';
 
 const app = express();
 const port = 3000;
@@ -35,8 +35,8 @@ app.use(passport.session());
 app.use(express.static("public"));
 app.use(bodyParser.urlencoded({ extended: true }));
 
-app.set('views', './views/');
 app.set('view engine', 'ejs');
+app.set('views', join(import.meta.url, 'views'));
 
 function ensureAuthenticated(req, res, next) {
     if (req.isAuthenticated()) {

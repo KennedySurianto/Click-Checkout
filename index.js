@@ -3,7 +3,7 @@ import bodyParser from "body-parser";
 import pg from "pg";
 import env from "dotenv";
 import passport from "passport";
-import session from "express-session";
+import session from "cookie-session";
 import { Strategy } from "passport-local";
 import bcrypt from "bcryptjs";
 

@@ -36,7 +36,7 @@ app.use(express.static("public"));
 app.use(bodyParser.urlencoded({ extended: true }));
 
 app.set('view engine', 'ejs');
-app.set('views', './views'));
+app.set('views', './views');
 
 function ensureAuthenticated(req, res, next) {
     if (req.isAuthenticated()) {

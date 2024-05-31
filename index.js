@@ -179,21 +179,9 @@ app.post("/edit-profile", ensureAuthenticated, async (req, res) => {
     res.redirect("/profile");
 })
 
-app.post("/logout", (req, res) => {
-    req.logout((err) => {
-        if (err) {
-            console.error(err);
-            return res.sendStatus(500); 
-        }
-        req.session.destroy((err) => {
-            if (err) {
-                console.error(err);
-            }
-            globalMessage.setMessage("success", "Account logged out successfully", "Make sure you come back 😊");
-            res.clearCookie("session"); // Clear the session cookie
-            res.redirect("/"); // Redirect to the homepage
-        });
-    });
+app.post('/logout', ensureAuthenticated, (req, res) => {
+    req.session = null;
+    res.redirect('/'); // Redirect to login page or another page
 });
 
 app.post("/address", ensureAuthenticated, async (req, res) => {

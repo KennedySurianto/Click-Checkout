@@ -9,7 +9,6 @@ import bcrypt from "bcryptjs";
 import { join } from 'path';
 
 const app = express();
-const port = 3000;
 const saltRounds = 10;
 
 env.config();
@@ -434,6 +433,6 @@ passport.deserializeUser((user, cb) => {
     cb(null, user);
 })
 
-app.listen(port, () => {
-    console.log(`Listening on port ${port}`);
+app.listen(process.env.PORT, '0.0.0.0', () => {
+    console.log(`Listening on port ${process.env.PORT}`);
 })

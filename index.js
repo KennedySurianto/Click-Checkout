@@ -19,6 +19,15 @@ const pool = new Pool({
     connectionString: process.env.POSTGRES_URL,
 })
 
+app.use(async (req, res, next) => {
+  try {
+    req.db = await pool.connect();
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
+
 app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false,
@@ -70,8 +79,7 @@ var globalMessage = {
 
 app.get("/", async (req, res) => {
     try {
-        const client = await pool.connect();
-        const products = await client.query("SELECT * FROM products ORDER BY created_at DESC");
+        const products = await req.db.query("SELECT * FROM products ORDER BY created_at DESC");
 
         res.render("index.ejs", { user: req.user, products: products.rows, message: globalMessage.getMessage() });
     } catch (error) {
@@ -90,10 +98,8 @@ app.get("/login", (req, res) => {
 app.get("/admin", ensureAuthenticated, ensureIsAdmin, async (req, res) => {
     console.log(req.user);
     try {
-        const client = await pool.connect();
-
-        const categories = await client.query("SELECT * FROM categories");
-        const products = await client.query("SELECT * FROM products");
+        const categories = await req.db.query("SELECT * FROM categories");
+        const products = await req.db.query("SELECT * FROM products");
         res.render("admin_page.ejs", { user: req.user, categories: categories.rows, products: products.rows });
     } catch (error) {
         console.log(error);
@@ -105,8 +111,7 @@ app.get("/product/:id", async (req, res) => {
     const product_id = req.params.id;
 
     try {
-        const client = await pool.connect();
-        const product = await client.query("SELECT * FROM products WHERE product_id = $1", [product_id]);
+        const product = await req.db.query("SELECT * FROM products WHERE product_id = $1", [product_id]);
         res.render("product.ejs", { user: req.user, product: product.rows[0] });
     } catch (error) {
         console.log(error);
@@ -117,8 +122,7 @@ app.get("/product/:id", async (req, res) => {
 app.get("/cart", ensureAuthenticated, async (req, res) => {
     const user_id = req.user.user_id;
     try {
-        const client = await pool.connect();
-        const carts = await client.query("SELECT * FROM carts c JOIN products p ON p.product_id = c.product_id WHERE c.user_id = $1", [user_id]);
+        const carts = await req.db.query("SELECT * FROM carts c JOIN products p ON p.product_id = c.product_id WHERE c.user_id = $1", [user_id]);
 
         res.render("cart.ejs", { user: req.user, carts: carts.rows });
     } catch (error) {
@@ -129,8 +133,7 @@ app.get("/cart", ensureAuthenticated, async (req, res) => {
 
 app.get("/transaction", ensureAuthenticated, async (req, res) => {
     try {
-        const client = await pool.connect();
-        const transactions = await client.query("SELECT * FROM transaction_header th JOIN transaction_detail td ON td.transaction_id = th.transaction_id JOIN products p ON p.product_id = td.product_id WHERE th.user_id = $1 ORDER BY transaction_date DESC", [req.user.user_id]);
+        const transactions = await req.db.query("SELECT * FROM transaction_header th JOIN transaction_detail td ON td.transaction_id = th.transaction_id JOIN products p ON p.product_id = td.product_id WHERE th.user_id = $1 ORDER BY transaction_date DESC", [req.user.user_id]);
 
         res.render("transaction.ejs", { user: req.user, transactions: transactions.rows });
     } catch (error) {
@@ -141,8 +144,7 @@ app.get("/transaction", ensureAuthenticated, async (req, res) => {
 
 app.get("/profile", ensureAuthenticated, async (req, res) => {
     try {
-        const client = await pool.connect();
-        const addresses = await client.query("SELECT * FROM addresses WHERE user_id = $1", [req.user.user_id]);
+        const addresses = await req.db.query("SELECT * FROM addresses WHERE user_id = $1", [req.user.user_id]);
 
         res.render("profile.ejs", { user: req.user, address: addresses.rows[0], message: globalMessage.getMessage() })
     } catch (error) {
@@ -162,10 +164,9 @@ app.post("/edit-profile", ensureAuthenticated, async (req, res) => {
         globalMessage.setMessage("warning", "No changes made", "Make sure you enter different username or email to update")
     } else {
         try {
-            const client = await pool.connect();
-            const user = await client.query("SELECT * FROM users WHERE username = $1 AND email = $2", [username, email]);
+            const user = await req.db.query("SELECT * FROM users WHERE username = $1 AND email = $2", [username, email]);
             if (user.rowCount === 0) {
-                await client.query("UPDATE users SET username = $1, email = $2 WHERE user_id = $3", [username, email, req.user.user_id]);
+                await req.db.query("UPDATE users SET username = $1, email = $2 WHERE user_id = $3", [username, email, req.user.user_id]);
                 globalMessage.setMessage("success", "Changes made successfully", "Be sure to remember the new one")
                 console.log("changes made")
             } else {
@@ -202,16 +203,15 @@ app.post("/address", ensureAuthenticated, async (req, res) => {
     const zip_code = req.body.zip_code;
 
     try {
-        const client = await pool.connect();
-        const address = await client.query("SELECT * FROM addresses WHERE user_id = $1", [req.user.user_id]);
+        const address = await req.db.query("SELECT * FROM addresses WHERE user_id = $1", [req.user.user_id]);
         if (address.rowCount > 0) {
             // update
             globalMessage.setMessage("success", "Address updated successfully", "This address will be used for future delivery");
-            await client.query("UPDATE addresses SET street_address = $1, city = $2, state = $3, zip_code = $4 WHERE user_id = $5", [street_address, city, state, zip_code, req.user.user_id]);
+            await req.db.query("UPDATE addresses SET street_address = $1, city = $2, state = $3, zip_code = $4 WHERE user_id = $5", [street_address, city, state, zip_code, req.user.user_id]);
         } else {
             // create
             globalMessage.setMessage("success", "Address created successfully", "This address will be used for future delivery");
-            await client.query("INSERT INTO addresses (user_id, street_address, city, state, zip_code) VALUES ($1, $2, $3, $4, $5)", [req.user.user_id, street_address, city, state, zip_code]);
+            await req.db.query("INSERT INTO addresses (user_id, street_address, city, state, zip_code) VALUES ($1, $2, $3, $4, $5)", [req.user.user_id, street_address, city, state, zip_code]);
         }
         res.redirect("/profile");
     } catch (error) {
@@ -222,8 +222,7 @@ app.post("/address", ensureAuthenticated, async (req, res) => {
 
 app.post("/checkout", ensureAuthenticated, async (req, res) => {
     try {
-        const client = await pool.connect();
-        const address = await client.query("SELECT * FROM addresses WHERE user_id = $1", [req.user.user_id]);
+        const address = await req.db.query("SELECT * FROM addresses WHERE user_id = $1", [req.user.user_id]);
 
         if (address.rowCount === 0) {
             // if address not set
@@ -231,35 +230,34 @@ app.post("/checkout", ensureAuthenticated, async (req, res) => {
             res.redirect("/profile");
         } else {
             // if address is set
-            const carts = await client.query("SELECT * FROM carts WHERE user_id = $1", [req.user.user_id]);
+            const carts = await req.db.query("SELECT * FROM carts WHERE user_id = $1", [req.user.user_id]);
 
-            await client.query("BEGIN");
+            await req.db.query("BEGIN");
 
-            const transaction = await client.query("INSERT INTO transaction_header (user_id) VALUES ($1) RETURNING *", [req.user.user_id]);
+            const transaction = await req.db.query("INSERT INTO transaction_header (user_id) VALUES ($1) RETURNING *", [req.user.user_id]);
             const transactionId = transaction.rows[0].transaction_id;
 
             const updateStockPromises = carts.rows.map(c => {
-                return client.query("UPDATE products SET stock = stock - $1 WHERE product_id = $2", [c.quantity, c.product_id]);
+                return req.db.query("UPDATE products SET stock = stock - $1 WHERE product_id = $2", [c.quantity, c.product_id]);
             });
 
             await Promise.all(updateStockPromises);
 
             const insertDetailPromises = carts.rows.map(c => {
-                return client.query("INSERT INTO transaction_detail (transaction_id, product_id, quantity) VALUES ($1, $2, $3)",
+                return req.db.query("INSERT INTO transaction_detail (transaction_id, product_id, quantity) VALUES ($1, $2, $3)",
                     [transactionId, c.product_id, c.quantity]);
             });
 
             await Promise.all(insertDetailPromises);
 
-            await client.query("DELETE FROM carts WHERE user_id = $1", [req.user.user_id]);
+            await req.db.query("DELETE FROM carts WHERE user_id = $1", [req.user.user_id]);
 
-            await client.query("COMMIT");
+            await req.db.query("COMMIT");
 
             res.redirect("/cart");
         }
     } catch (error) {
-        const client = await pool.connect();
-        await client.query("ROLLBACK");
+        await req.db.query("ROLLBACK");
         console.error(error);
         res.redirect("/");
     }
@@ -270,8 +268,7 @@ app.post("/delete-cart", ensureAuthenticated, async (req, res) => {
     const cart_id = req.body.cart_id;
 
     try {
-        const client = await pool.connect();
-        await client.query("DELETE FROM carts WHERE cart_id = $1", [cart_id]);
+        await req.db.query("DELETE FROM carts WHERE cart_id = $1", [cart_id]);
 
         res.redirect("/cart");
     } catch (error) {
@@ -286,16 +283,15 @@ app.post("/add-to-cart", ensureAuthenticated, async (req, res) => {
     const quantity = parseInt(req.body.quantity);
 
     try {
-        const client = await pool.connect();
-        const checkExistingItem = await client.query("SELECT * FROM carts WHERE user_id = $1 AND product_id = $2", [user_id, product_id]);
+        const checkExistingItem = await req.db.query("SELECT * FROM carts WHERE user_id = $1 AND product_id = $2", [user_id, product_id]);
 
         // if there is already the item user trying to add to cart, just add the quantity
         if (checkExistingItem.rowCount > 0) {
             const cart = checkExistingItem.rows[0];
             const updateQuantity = quantity + parseInt(cart.quantity);
-            await client.query("UPDATE carts SET quantity = $1 WHERE cart_id = $2", [updateQuantity, cart.cart_id]);
+            await req.db.query("UPDATE carts SET quantity = $1 WHERE cart_id = $2", [updateQuantity, cart.cart_id]);
         } else {
-            await client.query("INSERT INTO carts (user_id, product_id, quantity) VALUES ($1, $2, $3)", [user_id, product_id, quantity]);
+            await req.db.query("INSERT INTO carts (user_id, product_id, quantity) VALUES ($1, $2, $3)", [user_id, product_id, quantity]);
         }
         res.redirect("/cart");
     } catch (error) {
@@ -313,8 +309,7 @@ app.post("/admin/add-product", ensureAuthenticated, ensureIsAdmin, async (req, r
     const price = req.body.price;
 
     try {
-        const client = await pool.connect();
-        await client.query("INSERT INTO products (user_id, category_id, name, description, stock, price) VALUES ($1, $2, $3, $4, $5, $6)", [user_id, category_id, name, desc, stock, price]);
+        await req.db.query("INSERT INTO products (user_id, category_id, name, description, stock, price) VALUES ($1, $2, $3, $4, $5, $6)", [user_id, category_id, name, desc, stock, price]);
 
         globalMessage.setMessage("success", "Product created successfully", "Lorem Ipsum");
         res.redirect("/admin");
@@ -334,8 +329,7 @@ app.post("/admin/edit-product", ensureAuthenticated, ensureIsAdmin, async (req, 
     const price = req.body.price;
 
     try {
-        const client = await pool.connect();
-        await client.query("UPDATE products SET category_id = $1, name = $2, description = $3, stock = $4, price = $5 WHERE product_id = $6", [category_id, name, description, stock, price, product_id]);
+        await req.db.query("UPDATE products SET category_id = $1, name = $2, description = $3, stock = $4, price = $5 WHERE product_id = $6", [category_id, name, description, stock, price, product_id]);
 
         globalMessage.setMessage("success", "Product updated successfully", "Lorem Ipsum");
         res.redirect("/admin");
@@ -353,8 +347,7 @@ app.post("/register", async (req, res) => {
     const password_confirmation = req.body.password_confirmation;
 
     try {
-        const client = await pool.connect();
-        const checkUnique = await client.query("SELECT * FROM users WHERE email = $1", [email]);
+        const checkUnique = await req.db.query("SELECT * FROM users WHERE email = $1", [email]);
 
         if (checkUnique.rowCount > 0) {
             globalMessage.setMessage("danger", "Email already exist", "Try using a different email");
@@ -368,7 +361,7 @@ app.post("/register", async (req, res) => {
                     if (err) {
                         console.log(err);
                     } else {
-                        const result = await client.query("INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING *", [username, email, hash]);
+                        const result = await req.db.query("INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING *", [username, email, hash]);
                         const user = result.rows[0];
 
                         req.login(user, (err) => {
@@ -396,8 +389,7 @@ passport.use(
         { usernameField: "email" }, // Specify which field is used as the username
         async (email, password, done) => {
             try {
-                const client = await pool.connect();
-                const result = await client.query("SELECT * FROM users WHERE email = $1", [email]);
+                const result = await req.db.query("SELECT * FROM users WHERE email = $1", [email]);
                 if (result.rowCount === 0) {
                     globalMessage.setMessage("danger", "Email doesn't exist", "Please make sure you entered the correct email");
                     return done(null, false);

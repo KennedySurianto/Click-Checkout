@@ -6,7 +6,6 @@ import passport from "passport";
 import session from "express-session";
 import { Strategy } from "passport-local";
 import bcrypt from "bcryptjs";
-import flash from "connect-flash";
 
 const app = express();
 const port = 3000;
@@ -36,7 +35,6 @@ app.use(passport.session());
 
 app.use(express.static("public"));
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(flash());
 
 function ensureAuthenticated(req, res, next) {
     if (req.isAuthenticated()) {
@@ -300,9 +298,11 @@ app.post("/admin/add-product", ensureAuthenticated, ensureIsAdmin, async (req, r
     try {
         await db.query("INSERT INTO products (user_id, category_id, name, description, stock, price) VALUES ($1, $2, $3, $4, $5, $6)", [user_id, category_id, name, desc, stock, price]);
 
+        globalMessage.setMessage("success", "Product created successfully", "Lorem Ipsum");
         res.redirect("/admin");
     } catch (error) {
         console.log(error);
+        globalMessage.setMessage("danger", "An error occured", error.message);
         res.redirect("/");
     }
 })
@@ -318,9 +318,11 @@ app.post("/admin/edit-product", ensureAuthenticated, ensureIsAdmin, async (req, 
     try {
         await db.query("UPDATE products SET category_id = $1, name = $2, description = $3, stock = $4, price = $5 WHERE product_id = $6", [category_id, name, description, stock, price, product_id]);
 
+        globalMessage.setMessage("success", "Product updated successfully", "Lorem Ipsum");
         res.redirect("/admin");
     } catch (error) {
         console.log(error);
+        globalMessage.setMessage("danger", "An error occured", error.message);
         res.redirect("/");
     }
 })

@@ -6,13 +6,13 @@ import passport from "passport";
 import session from "cookie-session";
 import { Strategy } from "passport-local";
 import bcrypt from "bcryptjs";
+import ejs from "ejs";
 
 const app = express();
 const port = 3000;
 const saltRounds = 10;
 
 env.config();
-
 
 const { Pool } = pg;
 
@@ -34,6 +34,8 @@ app.use(passport.session());
 
 app.use(express.static("public"));
 app.use(bodyParser.urlencoded({ extended: true }));
+app.set("view engine", "ejs");
+app.engine("ejs", ejs.__express);
 
 function ensureAuthenticated(req, res, next) {
     if (req.isAuthenticated()) {

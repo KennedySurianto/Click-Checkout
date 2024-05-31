@@ -18,6 +18,7 @@ const db = new pg.Client({
     database: process.env.PG_DATABASE,
     password: process.env.PG_PASSWORD,
     port: process.env.PG_PORT,
+    ssl: true
 });
 db.connect();
 
@@ -343,21 +344,22 @@ app.post("/register", async (req, res) => {
             if (password !== password_confirmation) {
                 globalMessage.setMessage("danger", "Password doesn't match", "Make sure the password confirmation matches the password");
                 res.redirect("/register");
-            }
-            bcrypt.hash(password, saltRounds, async (err, hash) => {
-                if (err) {
-                    console.log(err);
-                } else {
-                    const result = await db.query("INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING *", [username, email, hash]);
-                    const user = result.rows[0];
-
-                    req.login(user, (err) => {
+            } else {
+                bcrypt.hash(password, saltRounds, async (err, hash) => {
+                    if (err) {
                         console.log(err);
-                        globalMessage.setMessage("success", "Account created successfully", "You can add items to cart now");
-                        res.redirect("/");
-                    })
-                }
-            })
+                    } else {
+                        const result = await db.query("INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING *", [username, email, hash]);
+                        const user = result.rows[0];
+
+                        req.login(user, (err) => {
+                            console.log(err);
+                            globalMessage.setMessage("success", "Account created successfully", "You can add items to cart now");
+                            res.redirect("/");
+                        })
+                    }
+                })
+            }
         }
     } catch (error) {
         console.log(error);

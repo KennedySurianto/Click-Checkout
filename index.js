@@ -375,7 +375,7 @@ passport.use(
     "local",
     new Strategy(
         { usernameField: "email" }, // Specify which field is used as the username
-        async (email, password, done) => {
+        async (req, email, password, done) => {
             try {
                 const result = await req.db.query("SELECT * FROM users WHERE email = $1", [email]);
                 if (result.rowCount === 0) {

@@ -15,18 +15,18 @@ env.config();
 const { Pool } = pg;
 
 // PROD
-const pool = new Pool({
-    connectionString: process.env.POSTGRES_URL,
-})
+// const pool = new Pool({
+//     connectionString: process.env.POSTGRES_URL,
+// })
 
 // DEV
-// const pool = new Pool({
-//     user: process.env.PG_USER,
-//     host: process.env.PG_HOST,
-//     database: process.env.PG_DATABASE,
-//     password: process.env.PG_PASSWORD, // adjust the password
-//     port: process.env.PG_PORT,
-// });
+const pool = new Pool({
+    user: process.env.PG_USER,
+    host: process.env.PG_HOST,
+    database: process.env.PG_DATABASE,
+    password: process.env.PG_PASSWORD, // adjust the password
+    port: process.env.PG_PORT,
+});
 
 app.use(async (req, res, next) => {
     try {
@@ -194,14 +194,15 @@ app.post("/edit-profile", ensureAuthenticated, async (req, res) => {
     res.redirect("/profile");
 })
 
-app.post('/logout', (req, res, next) => {
-    req.logout((err) => {
-        if (err) {
-            return next(err);
-        }
-        res.redirect('/login');
-    });
-});
+app.post('/logout', async (req, res, next) => {
+    req.logout();
+    req.session = null;
+    res.clearCookie('app.session', process.env.SESSION_SECRET)
+    res.clearCookie('app.session.sig', process.env.SESSION_SECRET)
+
+    globalMessage.setMessage("success", "Account logged out successfully", "Make sure to come back");
+    return res.redirect("/");
+})
 
 app.post("/address", ensureAuthenticated, async (req, res) => {
     const street_address = req.body.street_address;

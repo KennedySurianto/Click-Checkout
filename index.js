@@ -3,10 +3,9 @@ import bodyParser from "body-parser";
 import pg from "pg";
 import env from "dotenv";
 import passport from "passport";
-import session from "cookie-session";
+import cookieSession from "cookie-session";
 import { Strategy } from "passport-local";
 import bcrypt from "bcryptjs";
-import { join } from 'path';
 
 const app = express();
 const saltRounds = 10;
@@ -15,20 +14,36 @@ env.config();
 
 const { Pool } = pg;
 
+// PROD
 const pool = new Pool({
     connectionString: process.env.POSTGRES_URL,
 })
 
+// DEV
+// const pool = new Pool({
+//     user: process.env.PG_USER,
+//     host: process.env.PG_HOST,
+//     database: process.env.PG_DATABASE,
+//     password: process.env.PG_PASSWORD, // adjust the password
+//     port: process.env.PG_PORT,
+// });
+
 app.use(async (req, res, next) => {
-  try {
-    req.db = await pool.connect();
-    next();
-  } catch (err) {
-    next(err);
-  }
+    try {
+        req.db = await pool.connect();
+        
+        res.on('finish', () => {
+            req.db.release();
+        });
+        
+        next();
+    } catch (err) {
+        next(err);
+    }
 });
 
-app.use(session({
+app.use(cookieSession({
+    name: "session",
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: true,
@@ -179,9 +194,13 @@ app.post("/edit-profile", ensureAuthenticated, async (req, res) => {
     res.redirect("/profile");
 })
 
-app.post('/logout', ensureAuthenticated, (req, res) => {
-    req.session = null;
-    res.redirect('/'); // Redirect to login page or another page
+app.post('/logout', (req, res, next) => {
+    req.logout((err) => {
+        if (err) {
+            return next(err);
+        }
+        res.redirect('/login');
+    });
 });
 
 app.post("/address", ensureAuthenticated, async (req, res) => {
@@ -374,7 +393,7 @@ app.post("/login", passport.authenticate("local", {
 passport.use(
     "local",
     new Strategy(
-        { usernameField: "email" }, // Specify which field is used as the username
+        { usernameField: "email", passReqToCallback: true }, // Specify which field is used as the username
         async (req, email, password, done) => {
             try {
                 const result = await req.db.query("SELECT * FROM users WHERE email = $1", [email]);
